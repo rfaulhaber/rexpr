@@ -64,81 +64,83 @@ func (n *Node) Evaluate() (float64, error) {
 func ParseString(s string) (*Node, error) {
 	tokens := strings.Split(s, " ")
 
+	operatorStack := &stack{}
 	operandStack := &stack{}
 
-	var nodeStack []*Node
+	pendingOperand := false
 
 	node := &Node{}
 
+	//var originalNode *Node
+
 	for _, token := range tokens {
-		if op, isOp := OperatorFromString(token); isOp {
-			if node.IsLeaf() {
-				rightStr := operandStack.Pop()
-				rightVal, err := strconv.ParseFloat(rightStr, 2)
+		if _, isOp := OperatorFromString(token); isOp {
+			operatorStack.Push(token)
+		} else if float, parseErr := strconv.ParseFloat(token, 2); parseErr == nil {
+			if pendingOperand {
+				for !operandStack.Empty() {
+					if node.IsLeaf() {
+						left, err := strconv.ParseFloat(operandStack.Pop(), 2)
 
-				if err != nil {
-					return nil, fmt.Errorf("invalid operand: %s", rightStr)
-				}
+						if err != nil {
+							return nil, fmt.Errorf("could not parse token: %s", token)
+						}
 
-				leftStr := operandStack.Pop()
-				leftVal, err := strconv.ParseFloat(leftStr, 2)
+						leftNode := &Node{
+							value: left,
+						}
 
-				if err != nil {
-					return nil, fmt.Errorf("invalid operand: %s", leftStr)
-				}
+						rightNode := &Node {
+							value: float,
+						}
 
-				newNode := &Node{
-					left: &Node{ value: leftVal },
-					right: &Node{ value: rightVal },
-					operator: op,
-				}
+						op, _ := OperatorFromString(operatorStack.Pop())
 
-				node.right = newNode
-			} else if node.left == nil {
-				node.operator = op
+						node.operator = op
 
-				leftStr := operandStack.Pop()
-				leftVal, err := strconv.ParseFloat(leftStr, 2)
+						node.left = leftNode
+						node.right = rightNode
+					} else if node.operator == 0 {
+						left, err := strconv.ParseFloat(operandStack.Pop(), 2)
 
-				if err != nil {
-					return nil, fmt.Errorf("invalid operand: %s", leftStr)
-				}
+						if err != nil {
+							return nil, fmt.Errorf("could not parse token: %s", token)
+						}
 
-				node.left = &Node{
-					value: leftVal,
-				}
+						leftNode := &Node{
+							value: left,
+						}
 
-				node = &Node{
-					left: node,
-				}
-			} else {
-				fmt.Println("trying to resolve issue", operandStack.Size())
-				node = &Node{
-					right: node,
-					operator: op,
-				}
+						op, _ := OperatorFromString(operatorStack.Pop())
 
-				leftStr := operandStack.Pop()
-				leftVal, err := strconv.ParseFloat(leftStr, 2)
+						node.operator = op
+						node.left = leftNode
+					}
 
-				if err != nil {
-					return nil, fmt.Errorf("invalid operand: %s", leftStr)
-				}
+					node = &Node {
+						right: node,
+					}
 
-				node.left = &Node{
-					value: leftVal,
+					if !operatorStack.Empty() {
+						node = &Node{
+							left: node,
+						}
+					} else {
+						node = &Node{
+							right: node,
+						}
+					}
 				}
 			}
-		} else if _, parseErr := strconv.ParseFloat(token, 2); parseErr == nil {
+
 			operandStack.Push(token)
+			pendingOperand = true
 		} else {
 			return nil, fmt.Errorf("token neither valid operator nor operand: %s", token)
 		}
 	}
 
-	if node.right == nil {
-		node = node.left
-	} else if node.left == nil {
+	if node.left == nil {
 		node = node.right
 	}
 
