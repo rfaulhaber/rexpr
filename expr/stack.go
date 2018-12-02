@@ -1,32 +1,35 @@
 package expr
 
-type stack struct {
-	arr []string
+type nodeStack struct {
+	arr []*Node
+}
+func (ns *nodeStack) Push(n *Node) {
+	ns.arr = append(ns.arr, n)
 }
 
-func (s *stack) Push(str string) {
-	s.arr = append(s.arr, str)
-}
+func (ns *nodeStack) Pop() *Node {
+	if len(ns.arr) > 0 {
+		lastIndex := len(ns.arr) - 1
 
-func (s *stack) Pop() string {
-	if len(s.arr) > 0 {
-		lastIndex := len(s.arr) - 1
+		ret := ns.arr[lastIndex]
+		newArr := ns.arr[:lastIndex]
 
-		ret := s.arr[lastIndex]
-		newArr := s.arr[:lastIndex]
-
-		s.arr = newArr
+		ns.arr = newArr
 
 		return ret
 	}
 
-	return ""
+	return &Node{}
 }
 
-func (s *stack) Empty() bool {
-	return len(s.arr) == 0
+func (ns *nodeStack) Empty() bool {
+	return len(ns.arr) == 0
 }
 
-func (s *stack) Size() int {
-	return len(s.arr)
+func (ns *nodeStack) Size() int {
+	return len(ns.arr)
+}
+
+func (ns *nodeStack) Peek() *Node {
+	return ns.arr[len(ns.arr) - 1]
 }

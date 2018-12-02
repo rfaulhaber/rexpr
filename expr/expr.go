@@ -16,8 +16,10 @@ type Node struct {
 	operator Operator
 }
 
-func NewNode() *Node {
-	return &Node{}
+func NewNode(value float64) *Node {
+	return &Node{
+		value: value,
+	}
 }
 
 func (n *Node) IsLeaf() bool {
@@ -64,87 +66,26 @@ func (n *Node) Evaluate() (float64, error) {
 func ParseString(s string) (*Node, error) {
 	tokens := strings.Split(s, " ")
 
-	operatorStack := &stack{}
-	operandStack := &stack{}
-
-	pendingOperand := false
-
-	node := &Node{}
-
-	//var originalNode *Node
+	nodes := nodeStack{}
 
 	for _, token := range tokens {
-		if _, isOp := OperatorFromString(token); isOp {
-			operatorStack.Push(token)
-		} else if float, parseErr := strconv.ParseFloat(token, 2); parseErr == nil {
-			if pendingOperand {
-				for !operandStack.Empty() {
-					if node.IsLeaf() {
-						left, err := strconv.ParseFloat(operandStack.Pop(), 2)
+		if op, isOp := OperatorFromString(token); isOp { // if operator
+			right := nodes.Pop()
+			left := nodes.Pop()
 
-						if err != nil {
-							return nil, fmt.Errorf("could not parse token: %s", token)
-						}
-
-						leftNode := &Node{
-							value: left,
-						}
-
-						rightNode := &Node {
-							value: float,
-						}
-
-						op, _ := OperatorFromString(operatorStack.Pop())
-
-						node.operator = op
-
-						node.left = leftNode
-						node.right = rightNode
-					} else if node.operator == 0 {
-						left, err := strconv.ParseFloat(operandStack.Pop(), 2)
-
-						if err != nil {
-							return nil, fmt.Errorf("could not parse token: %s", token)
-						}
-
-						leftNode := &Node{
-							value: left,
-						}
-
-						op, _ := OperatorFromString(operatorStack.Pop())
-
-						node.operator = op
-						node.left = leftNode
-					}
-
-					node = &Node {
-						right: node,
-					}
-
-					if !operatorStack.Empty() {
-						node = &Node{
-							left: node,
-						}
-					} else {
-						node = &Node{
-							right: node,
-						}
-					}
-				}
-			}
-
-			operandStack.Push(token)
-			pendingOperand = true
-		} else {
+			nodes.Push(&Node{
+				left: left,
+				right: right,
+				operator: op,
+			})
+		} else if number, isNumber := tokenIsNumber(token); isNumber { // if number
+			nodes.Push(NewNode(number))
+		} else { // we don't know what it is!
 			return nil, fmt.Errorf("token neither valid operator nor operand: %s", token)
 		}
 	}
 
-	if node.left == nil {
-		node = node.right
-	}
-
-	return node, nil
+	return nodes.Pop(), nil
 }
 
 func (n *Node) String() string {
@@ -156,14 +97,6 @@ func (n *Node) String() string {
 		}
 	} else {
 		return fmt.Sprintf("(%s %s %s)", n.left.String(), n.operator.String(), n.right.String())
-	}
-}
-
-func (n *Node) reparent(right *Node, operator Operator) *Node {
-	return &Node{
-		left:     n,
-		right:    right,
-		operator: operator,
 	}
 }
 
@@ -214,4 +147,10 @@ func (o Operator) String() string {
 func OperatorFromString(s string) (Operator, bool) {
 	op, ok := strToOperator[s]
 	return op, ok
+}
+
+func tokenIsNumber(token string) (float64, bool) {
+	float, parseErr := strconv.ParseFloat(token, 2)
+
+	return float, parseErr == nil
 }
