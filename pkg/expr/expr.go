@@ -1,12 +1,12 @@
 package expr
 
-
 import (
 	"fmt"
-	"github.com/pkg/errors"
 	"math"
 	"strconv"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type Node struct {
@@ -30,6 +30,16 @@ func (n *Node) Evaluate() (float64, error) {
 	if n.IsLeaf() {
 		return n.value, nil
 	} else {
+		if n.operator == Fact {
+			left, err := n.left.Evaluate()
+
+			if err != nil {
+				return 0.0, errors.Wrap(err, "left evaluation failed")
+			}
+
+			return float64(factorial(int64(left))), nil
+		}
+
 		left, err := n.left.Evaluate()
 
 		if err != nil {
@@ -55,10 +65,8 @@ func (n *Node) Evaluate() (float64, error) {
 			return math.Floor(left / right), nil
 		case Pow:
 			return math.Pow(left, right), nil
-		case Fact:
-			return float64(factorial(int64(left))), nil
 		default:
-			return 0.0, errors.New("invalid operator found!")
+			return 0.0, errors.New("invalid operator found")
 		}
 	}
 }
@@ -70,14 +78,22 @@ func ParseString(s string) (*Node, error) {
 
 	for _, token := range tokens {
 		if op, isOp := OperatorFromString(token); isOp { // if operator
-			right := nodes.Pop()
-			left := nodes.Pop()
+			if op == Fact {
+				left := nodes.Pop()
+				nodes.Push(&Node{
+					left:     left,
+					operator: op,
+				})
+			} else {
+				right := nodes.Pop()
+				left := nodes.Pop()
 
-			nodes.Push(&Node{
-				left: left,
-				right: right,
-				operator: op,
-			})
+				nodes.Push(&Node{
+					left:     left,
+					right:    right,
+					operator: op,
+				})
+			}
 		} else if number, isNumber := tokenIsNumber(token); isNumber { // if number
 			nodes.Push(NewNode(number))
 		} else { // we don't know what it is!
@@ -96,6 +112,10 @@ func (n *Node) String() string {
 			return fmt.Sprintf("%f", n.value)
 		}
 	} else {
+		if n.operator == Fact {
+			return fmt.Sprintf("%s%s", n.left.String(), n.operator.String())
+		}
+
 		return fmt.Sprintf("(%s %s %s)", n.left.String(), n.operator.String(), n.right.String())
 	}
 }
@@ -103,9 +123,9 @@ func (n *Node) String() string {
 func factorial(i int64) int64 {
 	if i <= 2 {
 		return i
-	} else {
-		return i * factorial(i-1)
 	}
+
+	return i * factorial(i-1)
 }
 
 type Operator int
